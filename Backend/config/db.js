@@ -1,7 +1,8 @@
 // To connect with our database using mongoose
 const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+dotenv.config();
 
-const PORT = process.env.PORT || 3333;
 const url = process.env.MONGO_URI;
 const connectDB = async () => {
   try {
