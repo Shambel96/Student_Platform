@@ -1,4 +1,4 @@
-#Ignore files and directories that are nor needed in the repository
+#Ignore files and directories that are not needed in the repository
 node_modules/
 package-lock.json
 .env
