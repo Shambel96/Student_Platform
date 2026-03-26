@@ -8,7 +8,13 @@ const {
 } = require("../controllers/assignmentControllers");
 const { protect, authorize } = require("../middlewares/authMiddleware");
 
+// Include other resource routers
+const submissionRouter = require("./submissionRouter");
+
 const router = express.Router({ mergeParams: true }); // Important for nested routes
+
+// Re-route into other resource routers
+router.use("/:assignmentId/submissions", submissionRouter);
 
 router
   .route("/")
