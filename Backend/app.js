@@ -9,6 +9,7 @@ connectDB();
 const auth = require("./routers/authRouter");
 const courses = require("./routers/courseRouter");
 const assignments = require("./routers/assignmentRouter");
+const students = require("./routers/StudentRouter");
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use("/api/auth", auth);
 app.use("/api/courses", courses);
 app.use("/api/assignments", assignments);
+app.use("/api/students", students);
 
 
 
@@ -28,4 +30,4 @@ app.get("/", (req, res) => {
   res.end("Welcome to the backend server! Now API is ready to use.");
 });
 
-export default app;
+module.exports = app;
