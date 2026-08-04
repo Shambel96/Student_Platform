@@ -7,6 +7,7 @@ const {
   deleteAssignment,
 } = require("../controllers/assignmentControllers");
 const { protect, authorize } = require("../middlewares/authMiddleware");
+const { verifyEnrollment } = require("../middlewares/StudentMiddleware");
 
 // Include other resource routers
 const submissionRouter = require("./submissionRouter");
@@ -18,8 +19,8 @@ router.use("/:assignmentId/submissions", submissionRouter);
 
 router
   .route("/")
-  .get(protect, getAssignments)
-  .post(protect, authorize("Teacher", "Admin"), addAssignment);
+  .get(protect, verifyEnrollment, getAssignments)
+  .post(protect, authorize("Teacher", "Admin"), verifyEnrollment, addAssignment);
 
 router
   .route("/:id")
