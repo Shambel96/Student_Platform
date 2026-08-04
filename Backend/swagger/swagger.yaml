@@ -1,0 +1,1500 @@
+openapi: 3.0.0
+info:
+  title: Student Platform API
+  description: |
+    Backend API for the Student Platform. Supports authentication, course
+    management, enrollment, assignments, submissions, announcements and
+    course materials.
+
+    **Roles:** `Student`, `Teacher`, `Admin`, `Parent`.
+    - `Student` - can view enrolled courses, materials, announcements, assignments and submit work.
+    - `Teacher` - can create/manage their own courses and their resources.
+    - `Admin` - full access to everything.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3333/api
+    description: Local development server
+tags:
+  - name: Auth
+    description: Registration and login
+  - name: Courses
+    description: Course management
+  - name: Enrollments
+    description: Student enrollment in courses
+  - name: Assignments
+    description: Assignments and submissions
+  - name: Announcements
+    description: Course announcements
+  - name: Materials
+    description: Course materials
+  - name: Students
+    description: Student specific endpoints
+paths:
+  # ===================== AUTH =====================
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/UserPublic"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login a user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: student@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    type: string
+                    description: JWT access token
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  user:
+                    $ref: "#/components/schemas/UserPublic"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the currently logged in user
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== COURSES =====================
+  /courses:
+    get:
+      tags: [Courses]
+      summary: Get all courses
+      operationId: getCourses
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Course"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      tags: [Courses]
+      summary: Create a new course
+      operationId: createCourse
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description]
+              properties:
+                title:
+                  type: string
+                  example: Introduction to Databases
+                description:
+                  type: string
+                  example: Fundamentals of relational databases and SQL
+      responses:
+        "201":
+          description: Course created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Course"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /courses/{id}:
+    get:
+      tags: [Courses]
+      summary: Get a single course
+      operationId: getCourse
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CourseId"
+      responses:
+        "200":
+          description: Course data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Course"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      tags: [Courses]
+      summary: Update a course
+      operationId: updateCourse
+      security:
+        - bearerAuth: []
+      description: Requires the course owner (`Teacher`) or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Advanced Databases
+                description:
+                  type: string
+                  example: Advanced indexing, transactions and query optimization
+      responses:
+        "200":
+          description: Course updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Course"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      tags: [Courses]
+      summary: Delete a course
+      operationId: deleteCourse
+      security:
+        - bearerAuth: []
+      description: Requires the course owner (`Teacher`) or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseId"
+      responses:
+        "200":
+          description: Course deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== ENROLLMENTS =====================
+  /courses/{courseId}/enrollments:
+    get:
+      tags: [Enrollments]
+      summary: Get all students enrolled in a course
+      operationId: getCourseStudents
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      responses:
+        "200":
+          description: Enrolled students
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 3
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Enrollment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      tags: [Enrollments]
+      summary: Enroll a student in a course
+      operationId: enrollStudent
+      security:
+        - bearerAuth: []
+      description: |
+        A `Student` enrolls themselves (do not send `studentId`).
+        A `Teacher` or `Admin` can enroll a specific student by passing `studentId`.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                studentId:
+                  type: string
+                  description: ID of the student to enroll (Teacher/Admin only)
+                  example: 63f2b9d1c5e6f7a8b9c0d1e2
+      responses:
+        "201":
+          description: Student enrolled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Enrollment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /courses/{courseId}/enrollments/{studentId}:
+    delete:
+      tags: [Enrollments]
+      summary: Unenroll a student from a course
+      operationId: unenrollStudent
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the student to unenroll
+      responses:
+        "200":
+          description: Student unenrolled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== ASSIGNMENTS =====================
+  /courses/{courseId}/assignments:
+    get:
+      tags: [Assignments]
+      summary: Get assignments for a course
+      operationId: getCourseAssignments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      responses:
+        "200":
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 2
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Assignment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      tags: [Assignments]
+      summary: Add an assignment to a course
+      operationId: addAssignment
+      security:
+        - bearerAuth: []
+      description: Requires the course owner (`Teacher`) or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content, dueDate]
+              properties:
+                title:
+                  type: string
+                  example: SQL Exercise 1
+                content:
+                  type: string
+                  example: Write queries for the provided schema
+                dueDate:
+                  type: string
+                  format: date-time
+                  example: "2026-08-20T23:59:59.000Z"
+      responses:
+        "200":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Assignment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /assignments:
+    get:
+      tags: [Assignments]
+      summary: Get all assignments
+      operationId: getAssignments
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Assignment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /assignments/{id}:
+    get:
+      tags: [Assignments]
+      summary: Get a single assignment
+      operationId: getAssignment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      responses:
+        "200":
+          description: Assignment data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Assignment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      tags: [Assignments]
+      summary: Update an assignment
+      operationId: updateAssignment
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: SQL Exercise 1 - Revised
+                content:
+                  type: string
+                dueDate:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Assignment updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Assignment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      tags: [Assignments]
+      summary: Delete an assignment
+      operationId: deleteAssignment
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      responses:
+        "200":
+          description: Assignment deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== SUBMISSIONS =====================
+  /assignments/{assignmentId}/submissions:
+    post:
+      tags: [Assignments]
+      summary: Submit an assignment (create or update)
+      operationId: submitAssignment
+      security:
+        - bearerAuth: []
+      description: |
+        Requires `Student` role. The student must be enrolled in the course
+        the assignment belongs to and the due date must not have passed.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  example: My SQL queries for exercise 1
+      responses:
+        "200":
+          description: Submission saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Submission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    get:
+      tags: [Assignments]
+      summary: Get all submissions for an assignment
+      operationId: getAssignmentSubmissions
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      responses:
+        "200":
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Submission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /assignments/{assignmentId}/submissions/my-submission:
+    get:
+      tags: [Assignments]
+      summary: Get the student's own submission for an assignment
+      operationId: getMySubmission
+      security:
+        - bearerAuth: []
+      description: Requires `Student` role.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      responses:
+        "200":
+          description: Student's submission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Submission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /assignments/{assignmentId}/submissions/{submissionId}/grade:
+    put:
+      tags: [Assignments]
+      summary: Grade a submission
+      operationId: gradeSubmission
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Submission ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grade]
+              properties:
+                grade:
+                  type: number
+                  example: 92
+                feedback:
+                  type: string
+                  example: Great work! Check query 4.
+      responses:
+        "200":
+          description: Submission graded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Submission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== ANNOUNCEMENTS =====================
+  /courses/{courseId}/announcements:
+    get:
+      tags: [Announcements]
+      summary: Get announcements for a course
+      operationId: getAnnouncements
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      responses:
+        "200":
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      tags: [Announcements]
+      summary: Create an announcement
+      operationId: createAnnouncement
+      security:
+        - bearerAuth: []
+      description: Requires the course owner (`Teacher`) or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title:
+                  type: string
+                  example: Midterm reminder
+                content:
+                  type: string
+                  example: The midterm will be held on the last week of August.
+      responses:
+        "201":
+          description: Announcement created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Announcement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /courses/{courseId}/announcements/{id}:
+    delete:
+      tags: [Announcements]
+      summary: Delete an announcement
+      operationId: deleteAnnouncement
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Announcement ID
+      responses:
+        "200":
+          description: Announcement deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== MATERIALS =====================
+  /courses/{courseId}/materials:
+    get:
+      tags: [Materials]
+      summary: Get materials for a course
+      operationId: getMaterials
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      responses:
+        "200":
+          description: List of materials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Material"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      tags: [Materials]
+      summary: Add a material to a course
+      operationId: addMaterial
+      security:
+        - bearerAuth: []
+      description: Requires the course owner (`Teacher`) or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, fileUrl]
+              properties:
+                title:
+                  type: string
+                  example: Lecture 3 - Indexes
+                description:
+                  type: string
+                  example: Slides for the indexing lecture
+                fileUrl:
+                  type: string
+                  example: https://storage.example.com/lecture-3.pdf
+      responses:
+        "201":
+          description: Material added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Material"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /courses/{courseId}/materials/{id}:
+    delete:
+      tags: [Materials]
+      summary: Delete a material
+      operationId: deleteMaterial
+      security:
+        - bearerAuth: []
+      description: Requires `Teacher` or `Admin` role.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Material ID
+      responses:
+        "200":
+          description: Material deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ===================== STUDENTS =====================
+  /students/my-courses:
+    get:
+      tags: [Students]
+      summary: Get all courses the student is enrolled in
+      operationId: getStudentCourses
+      security:
+        - bearerAuth: []
+      description: Requires `Student` role.
+      responses:
+        "200":
+          description: Enrolled courses with resource counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StudentCourse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /students/courses/{courseId}:
+    get:
+      tags: [Students]
+      summary: Get an enrolled course with its resources
+      operationId: getCourseOverview
+      security:
+        - bearerAuth: []
+      description: Requires `Student` role and enrollment in the course.
+      parameters:
+        - $ref: "#/components/parameters/CourseIdParam"
+      responses:
+        "200":
+          description: Course overview (course, assignments, materials, announcements)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      course:
+                        $ref: "#/components/schemas/Course"
+                      assignments:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Assignment"
+                      materials:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Material"
+                      announcements:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /students/assignments/{assignmentId}/submit:
+    post:
+      tags: [Students]
+      summary: Submit or update an assignment
+      operationId: studentSubmitAssignment
+      security:
+        - bearerAuth: []
+      description: |
+        Requires `Student` role. The student must be enrolled in the course
+        and the due date must not have passed.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  example: My submission content
+      responses:
+        "200":
+          description: Submission saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Submission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /students/assignments/{assignmentId}/submission:
+    get:
+      tags: [Students]
+      summary: Get the student's own submission for an assignment
+      operationId: studentGetSubmission
+      security:
+        - bearerAuth: []
+      description: Requires `Student` role.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Assignment ID
+      responses:
+        "200":
+          description: Student's submission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Submission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter the JWT token obtained from `/auth/login` or `/auth/register`.
+  parameters:
+    CourseId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Course ID
+    CourseIdParam:
+      name: courseId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Course ID
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Please provide all required fields
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Not authorized to access this route
+    Forbidden:
+      description: Authenticated but not authorized for this action
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: User role Student is not authorized to access this route
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Course not found
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Server Error
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 63f2b9d1c5e6f7a8b9c0d1e2
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: johndoe@example.com
+        role:
+          type: string
+          enum: [Student, Admin, Parent, Teacher]
+          example: Student
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UserPublic:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 63f2b9d1c5e6f7a8b9c0d1e2
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: johndoe@example.com
+        role:
+          type: string
+          enum: [Student, Admin, Parent, Teacher]
+          example: Student
+    RegisterRequest:
+      type: object
+      required: [username, email, password, role]
+      properties:
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: johndoe@example.com
+        password:
+          type: string
+          format: password
+          example: password123
+        role:
+          type: string
+          enum: [Student, Teacher, Admin, Parent]
+          example: Student
+    Course:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 63f2b9d1c5e6f7a8b9c0d1e2
+        title:
+          type: string
+          example: Introduction to Databases
+        description:
+          type: string
+          example: Fundamentals of relational databases and SQL
+        teacherId:
+          oneOf:
+            - type: string
+              example: 63f2b9d1c5e6f7a8b9c0d1e2
+            - $ref: "#/components/schemas/UserPublic"
+          description: The teacher who owns the course (can be populated)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Assignment:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        courseId:
+          oneOf:
+            - type: string
+            - $ref: "#/components/schemas/Course"
+        content:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Announcement:
+      type: object
+      properties:
+        _id:
+          type: string
+        courseId:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Material:
+      type: object
+      properties:
+        _id:
+          type: string
+        courseId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        fileUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Enrollment:
+      type: object
+      properties:
+        _id:
+          type: string
+        studentId:
+          oneOf:
+            - type: string
+            - $ref: "#/components/schemas/UserPublic"
+        courseId:
+          oneOf:
+            - type: string
+            - $ref: "#/components/schemas/Course"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Submission:
+      type: object
+      properties:
+        _id:
+          type: string
+        assignmentId:
+          type: string
+        studentId:
+          oneOf:
+            - type: string
+            - $ref: "#/components/schemas/UserPublic"
+        content:
+          type: string
+        grade:
+          type: number
+          nullable: true
+          example: 92
+        feedback:
+          type: string
+          nullable: true
+          example: Great work!
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StudentCourse:
+      type: object
+      properties:
+        enrollmentId:
+          type: string
+        enrolledAt:
+          type: string
+          format: date-time
+        course:
+          $ref: "#/components/schemas/Course"
+        assignments:
+          type: integer
+          example: 3
+        materials:
+          type: integer
+          example: 5
+        announcements:
+          type: integer
+          example: 2
