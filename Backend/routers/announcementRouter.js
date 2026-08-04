@@ -5,16 +5,17 @@ const {
   deleteAnnouncement
 } = require("../controllers/announcementControllers");
 const { protect, authorize } = require("../middlewares/authMiddleware");
+const { verifyEnrollment } = require("../middlewares/StudentMiddleware");
 
 const router = express.Router({ mergeParams: true });
 
 router
   .route("/")
-  .get(protect, getAnnouncements)
-  .post(protect, authorize("Teacher", "Admin"), createAnnouncement);
+  .get(protect, verifyEnrollment, getAnnouncements)
+  .post(protect, authorize("Teacher", "Admin"), verifyEnrollment, createAnnouncement);
 
 router
   .route("/:id")
-  .delete(protect, authorize("Teacher", "Admin"), deleteAnnouncement);
+  .delete(protect, authorize("Teacher", "Admin"), verifyEnrollment, deleteAnnouncement);
 
 module.exports = router;
