@@ -1,36 +1,21 @@
 const Submission = require("../models/SubmissionModel");
 const Assignment = require("../models/AssignmentModel");
+const StudentService = require("../services/StudentService");
 
 // @desc    Submit an assignment
 // @route   POST /api/assignments/:assignmentId/submissions
 // @access  Private (Student)
 exports.submitAssignment = async (req, res) => {
   try {
-    const { content } = req.body;
-    const assignmentId = req.params.assignmentId;
-    const studentId = req.user._id;
-
-    const assignment = await Assignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({ message: "Assignment not found" });
-    }
-
-    // Check if submission already exists, allow update if so
-    let submission = await Submission.findOne({ assignmentId, studentId });
-    if (submission) {
-      submission.content = content;
-      await submission.save();
-    } else {
-      submission = await Submission.create({
-        assignmentId,
-        studentId,
-        content,
-      });
-    }
+    const submission = await StudentService.submitAssignment(
+      req.user._id,
+      req.params.assignmentId,
+      req.body.content
+    );
 
     res.status(200).json({ success: true, data: submission });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
 
